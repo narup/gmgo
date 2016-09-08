@@ -9,45 +9,72 @@ import (
 	"time"
 )
 
-/* DB Connection map */
+//query representation to hide bson.M type to single file
+type Q map[string]interface{}
+
+type queryFunc func(q *mgo.Query, result interface{}) error
+
+// connectionMap holds all the db connection per database name
 var connectionMap = make(map[string]Db)
 
-/**
- * Interface implemented by structs that needs to be persisted. It should provide collection name, as in the database.
- * Also, a way to create new object id before saving.
- */
+// Document interface implemented by structs that needs to be persisted. It should provide collection name,
+// as in the database. Also, a way to create new object id before saving.
 type Document interface {
 	CollectionName() string
 }
 
-/** Database config for the connection */
+// DbConfig represents the configuration params needed for MongoDB connection
 type DbConfig struct {
 	Host, DBName, UserName, Password string
 }
 
-/**
- * Mongo database connection which holds reference to global session and config it was used.
- * Both of these are immutable once initialized and not exposed to clients.
- */
+// Db represents database connection which holds reference to global session and configuration for that database.
 type Db struct {
 	Config  DbConfig
 	Session *mgo.Session
 }
 
-// Public Db functions
-// private method to construct collection object based on the name and session
+// collection returns a mgo.Collection representation for given collection name and session
 func (db Db) collection(collectionName string, session *mgo.Session) *mgo.Collection {
-	return db.Session.DB(db.Config.DBName).C(collectionName)
+	return session.DB(db.Config.DBName).C(collectionName)
 }
 
-// Insert the given db object representing the document to the database
-func (db Db) Save(object Document) error {
+// slice returns the interface representation of actual collection type for returning list data
+func (db Db) slice(d Document) interface{} {
+	documentType := reflect.TypeOf(d)
+	documentSlice := reflect.MakeSlice(reflect.SliceOf(documentType), 0, 0)
+
+	// Create a pointer to a slice value and set it to the slice
+	return reflect.New(documentSlice.Type()).Interface()
+}
+
+func (db Db) findQuery(d Document, s *mgo.Session, q interface{}) *mgo.Query {
+	//collection pointer for the given document
+	return db.collection(d.CollectionName(), s).Find(q)
+}
+
+func (db Db) executeFindAll(query Q, document Document, qf queryFunc) (interface{}, error) {
 	session := db.Session.Copy()
 	defer session.Close()
 
-	//objectId := object.CreateNewObjectId()
-	coll := db.collection(object.CollectionName(), session)
-	if err := coll.Insert(object); err != nil {
+	//collection pointer for the given document
+	documents := db.slice(document)
+	q := db.findQuery(document, session, query)
+
+	if err := qf(q, documents); err != nil {
+		log.Printf("Error fetching %s list. Error: %s\n", document.CollectionName(), err)
+		return nil, err
+	}
+	return results(documents)
+}
+
+// Save inserts the given document that represents the collection to the database.
+func (db Db) Save(document Document) error {
+	session := db.Session.Copy()
+	defer session.Close()
+
+	coll := db.collection(document.CollectionName(), session)
+	if err := coll.Insert(document); err != nil {
 		return err
 	}
 
@@ -71,13 +98,13 @@ func (db Db) FindById(id string, result Document) error {
 	return nil
 }
 
-func (db Db) Find(query map[string]interface{}, result Document) error {
+func (db Db) Find(query map[string]interface{}, document Document) error {
 	session := db.Session.Copy()
 	defer session.Close()
 
-	coll := db.collection(result.CollectionName(), session)
-	if err := coll.Find(query).One(result); err != nil {
-		log.Printf("Error fetching %s with query %s. Error: %s\n", result.CollectionName(), query, err)
+	q := db.findQuery(document, session, query)
+	if err := q.One(document); err != nil {
+		log.Printf("Error fetching %s with query %s. Error: %s\n", document.CollectionName(), query, err)
 		return err
 	} else {
 		log.Printf("Found data for query %s\n", query)
@@ -86,25 +113,30 @@ func (db Db) Find(query map[string]interface{}, result Document) error {
 	return nil
 }
 
-func (db Db) FindAll(query map[string]interface{}, document Document) (interface{}, error) {
+func (db Db) FindByRef(ref *mgo.DBRef, document Document) error {
 	session := db.Session.Copy()
 	defer session.Close()
 
-	//collection pointer for the given document
-	coll := db.collection(document.CollectionName(), session)
-
-	documentType := reflect.TypeOf(document)
-	documentSlice := reflect.MakeSlice(reflect.SliceOf(documentType), 0, 0)
-
-	// Create a pointer to a slice value and set it to the slice
-	documents := reflect.New(documentSlice.Type())
-
-	if err := coll.Find(query).All(documents.Interface()); err != nil {
-		log.Printf("Error fetching %s with id %s. Error: %s\n", document.CollectionName(), err)
-		return nil, err
+	q := session.DB(db.Config.DBName).FindRef(ref)
+	if err := q.One(document); err != nil {
+		log.Printf("Error fetching %s. Error: %s\n", document.CollectionName(), err)
+		return err
 	}
+	return nil
+}
 
-	return documents.Elem().Interface(), nil
+func (db Db) FindAll(query Q, document Document) (interface{}, error) {
+	fn := func(q *mgo.Query, result interface{}) error {
+		return q.All(result)
+	}
+	return db.executeFindAll(query, document, fn)
+}
+
+func (db Db) FindWithLimit(limit int, query Q, document Document) (interface{}, error) {
+	fn := func(q *mgo.Query, result interface{}) error {
+		return q.Limit(limit).All(result)
+	}
+	return db.executeFindAll(query, document, fn)
 }
 
 func New(dbName string) (Db, error) {
@@ -139,4 +171,8 @@ func Setup(dbConfig DbConfig) error {
 	connectionMap[dbConfig.DBName] = Db{Session: dbSession, Config: dbConfig}
 
 	return nil
+}
+
+func results(documents interface{}) (interface{}, error) {
+	return reflect.ValueOf(documents).Elem().Interface(), nil
 }

@@ -48,7 +48,7 @@ func (db Db) slice(d Document) interface{} {
 	return reflect.New(documentSlice.Type()).Interface()
 }
 
-func (db Db) findQuery(d Document, s *mgo.Session, q interface{}) *mgo.Query {
+func (db Db) findQuery(d Document, s *mgo.Session, q Q) *mgo.Query {
 	//collection pointer for the given document
 	return db.collection(d.CollectionName(), s).Find(q)
 }
@@ -82,6 +82,15 @@ func (db Db) Save(document Document) error {
 	return nil
 }
 
+// Update updates the given document based on given selector
+func (db Db) Update(selector Q, document Document) error {
+	session := db.Session.Copy()
+	defer session.Close()
+
+	coll := db.collection(document.CollectionName(), session)
+	return coll.Update(selector, document)
+}
+
 // Find the object by id. Returns error if it's not able to find the document. If document is found
 // it's copied to the passed in result object.
 func (db Db) FindById(id string, result Document) error {
@@ -98,7 +107,7 @@ func (db Db) FindById(id string, result Document) error {
 	return nil
 }
 
-func (db Db) Find(query map[string]interface{}, document Document) error {
+func (db Db) Find(query Q, document Document) error {
 	session := db.Session.Copy()
 	defer session.Close()
 

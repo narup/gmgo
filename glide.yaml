@@ -1,0 +1,5 @@
+package: gmgo
+import:
+- package: gopkg.in/mgo.v2
+  subpackages:
+  - bson

@@ -33,8 +33,8 @@ type DbConfig struct {
 
 // Db represents database connection which holds reference to global session and configuration for that database.
 type Db struct {
-	Config  DbConfig
-	session *mgo.Session
+	Config      DbConfig
+	mainSession *mgo.Session
 }
 
 // DbSession mgo session wrapper
@@ -43,14 +43,9 @@ type DbSession struct {
 	Session *mgo.Session
 }
 
-// CloneSession clones the main db session
-func (db Db) CloneSession() *DbSession {
-	return &DbSession{db: db, Session: db.session.Clone()}
-}
-
-// CopySession copies the main db session
-func (db Db) CopySession() *DbSession {
-	return &DbSession{db: db, Session: db.session.Copy()}
+// Session creates the copy of the main session
+func (db Db) Session() *DbSession {
+	return &DbSession{db: db, Session: db.mainSession.Copy()}
 }
 
 // collection returns a mgo.Collection representation for given collection name and session
@@ -167,17 +162,15 @@ func Setup(dbConfig DbConfig) error {
 		Password: dbConfig.Password,
 	}
 
-	dbSession, err := mgo.DialWithInfo(mongoDBDialInfo)
+	session, err := mgo.DialWithInfo(mongoDBDialInfo)
 	if err != nil {
 		log.Printf("MongoDB connection failed : %s. Exiting the program.\n", err)
 		return err
 	}
 
-	dbSession.SetMode(mgo.Monotonic, false)
 	log.Println("Connected to MongoDB successfully")
-
 	/* Initialized database object with global session*/
-	connectionMap[dbConfig.DBName] = Db{session: dbSession, Config: dbConfig}
+	connectionMap[dbConfig.DBName] = Db{mainSession: session, Config: dbConfig}
 
 	return nil
 }

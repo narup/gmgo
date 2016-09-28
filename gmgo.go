@@ -48,6 +48,17 @@ func (db Db) Session() *DbSession {
 	return &DbSession{db: db, Session: db.mainSession.Copy()}
 }
 
+// Clone returns the clone of current DB session. Cloned session
+// uses the same socket connection
+func (s *DbSession) Clone() *DbSession {
+	return &DbSession{db: s.db, Session: s.Session.Clone()}
+}
+
+// Close closes the underlying mgo session
+func (s *DbSession) Close() {
+	s.Session.Close()
+}
+
 // collection returns a mgo.Collection representation for given collection name and session
 func (s *DbSession) collection(collectionName string) *mgo.Collection {
 	return s.Session.DB(s.db.Config.DBName).C(collectionName)

@@ -157,8 +157,8 @@ func (s *DbSession) FindWithLimit(limit int, query Q, document Document) (interf
 func (s *DbSession) Exists(query Q, document Document) (bool, error) {
 	q := s.findQuery(document, query)
 	if err := q.Select(bson.M{"_id": 1}).Limit(1).One(document); err != nil {
-		if err.Error() != mgo.ErrNotFound.Error() {
-			return false, nil
+		if err.Error() == mgo.ErrNotFound.Error() {
+			return true, nil
 		}
 		return false, err
 	}

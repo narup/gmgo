@@ -76,7 +76,9 @@ func (s *DbSession) executeFindAll(query Q, document Document, qf queryFunc) (in
 	q := s.findQuery(document, query)
 
 	if err := qf(q, documents); err != nil {
-		log.Printf("Error fetching %s list. Error: %s\n", document.CollectionName(), err)
+		if err.Error() != "not found" {
+			log.Printf("Error fetching %s list. Error: %s\n", document.CollectionName(), err)
+		}
 		return nil, err
 	}
 	return results(documents)
@@ -88,8 +90,6 @@ func (s *DbSession) Save(document Document) error {
 	if err := coll.Insert(document); err != nil {
 		return err
 	}
-
-	log.Println("Document inserted successfully!")
 	return nil
 }
 
@@ -104,12 +104,11 @@ func (s *DbSession) Update(selector Q, document Document) error {
 func (s *DbSession) FindByID(id string, result Document) error {
 	coll := s.collection(result.CollectionName())
 	if err := coll.FindId(bson.ObjectIdHex(id)).One(result); err != nil {
-		log.Printf("Error fetching %s with id %s. Error: %s\n", result.CollectionName(), id, err)
+		if err.Error() != "not found" {
+			log.Printf("Error fetching %s with id %s. Error: %s\n", result.CollectionName(), id, err)
+		}
 		return err
 	}
-
-	log.Printf("Found data for id %s\n", id)
-
 	return nil
 }
 
@@ -117,12 +116,11 @@ func (s *DbSession) FindByID(id string, result Document) error {
 func (s *DbSession) Find(query Q, document Document) error {
 	q := s.findQuery(document, query)
 	if err := q.One(document); err != nil {
-		log.Printf("Error fetching %s with query %s. Error: %s\n", document.CollectionName(), query, err)
+		if err.Error() != "not found" {
+			log.Printf("Error fetching %s with query %s. Error: %s\n", document.CollectionName(), query, err)
+		}
 		return err
 	}
-
-	log.Printf("Found data for query %s\n", query)
-
 	return nil
 }
 
@@ -130,7 +128,10 @@ func (s *DbSession) Find(query Q, document Document) error {
 func (s *DbSession) FindByRef(ref *mgo.DBRef, document Document) error {
 	q := s.Session.DB(s.db.Config.DBName).FindRef(ref)
 	if err := q.One(document); err != nil {
-		log.Printf("Error fetching %s. Error: %s\n", document.CollectionName(), err)
+		if err.Error() != "not found" {
+			log.Printf("Error fetching %s. Error: %s\n", document.CollectionName(), err)
+		}
+
 		return err
 	}
 	return nil

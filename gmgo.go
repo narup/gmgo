@@ -76,7 +76,7 @@ func (s *DbSession) executeFindAll(query Q, document Document, qf queryFunc) (in
 	q := s.findQuery(document, query)
 
 	if err := qf(q, documents); err != nil {
-		if err.Error() != "not found" {
+		if err.Error() != mgo.ErrNotFound.Error() {
 			log.Printf("Error fetching %s list. Error: %s\n", document.CollectionName(), err)
 		}
 		return nil, err
@@ -104,7 +104,7 @@ func (s *DbSession) Update(selector Q, document Document) error {
 func (s *DbSession) FindByID(id string, result Document) error {
 	coll := s.collection(result.CollectionName())
 	if err := coll.FindId(bson.ObjectIdHex(id)).One(result); err != nil {
-		if err.Error() != "not found" {
+		if err.Error() != mgo.ErrNotFound.Error() {
 			log.Printf("Error fetching %s with id %s. Error: %s\n", result.CollectionName(), id, err)
 		}
 		return err
@@ -116,7 +116,7 @@ func (s *DbSession) FindByID(id string, result Document) error {
 func (s *DbSession) Find(query Q, document Document) error {
 	q := s.findQuery(document, query)
 	if err := q.One(document); err != nil {
-		if err.Error() != "not found" {
+		if err.Error() != mgo.ErrNotFound.Error() {
 			log.Printf("Error fetching %s with query %s. Error: %s\n", document.CollectionName(), query, err)
 		}
 		return err
@@ -128,7 +128,7 @@ func (s *DbSession) Find(query Q, document Document) error {
 func (s *DbSession) FindByRef(ref *mgo.DBRef, document Document) error {
 	q := s.Session.DB(s.db.Config.DBName).FindRef(ref)
 	if err := q.One(document); err != nil {
-		if err.Error() != "not found" {
+		if err.Error() != mgo.ErrNotFound.Error() {
 			log.Printf("Error fetching %s. Error: %s\n", document.CollectionName(), err)
 		}
 
@@ -151,6 +151,18 @@ func (s *DbSession) FindWithLimit(limit int, query Q, document Document) (interf
 		return q.Limit(limit).All(result)
 	}
 	return s.executeFindAll(query, document, fn)
+}
+
+// Exists check if the document exists for given query
+func (s *DbSession) Exists(query Q, document Document) (bool, error) {
+	q := s.findQuery(document, query)
+	if err := q.Select(bson.M{"_id": 1}).Limit(1).One(document); err != nil {
+		if err.Error() != mgo.ErrNotFound.Error() {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // Get creates new database connection

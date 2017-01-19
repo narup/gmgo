@@ -137,6 +137,14 @@ func (s *DbSession) FindByRef(ref *mgo.DBRef, document Document) error {
 	return nil
 }
 
+// FindAllWithFields returns all the documents with given fields based on a given query
+func (s *DbSession) FindAllWithFields(query Q, fields []string, document Document) (interface{}, error) {
+	fn := func(q *mgo.Query, result interface{}) error {
+		return q.Select(sel(fields...)).All(result)
+	}
+	return s.executeFindAll(query, document, fn)
+}
+
 // FindAll returns all the documents based on given query
 func (s *DbSession) FindAll(query Q, document Document) (interface{}, error) {
 	fn := func(q *mgo.Query, result interface{}) error {
@@ -197,6 +205,14 @@ func Setup(dbConfig DbConfig) error {
 	connectionMap[dbConfig.DBName] = Db{mainSession: session, Config: dbConfig}
 
 	return nil
+}
+
+func sel(q ...string) (r bson.M) {
+	r = make(bson.M, len(q))
+	for _, s := range q {
+		r[s] = 1
+	}
+	return
 }
 
 func results(documents interface{}) (interface{}, error) {

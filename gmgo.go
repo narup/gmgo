@@ -200,6 +200,7 @@ func Setup(dbConfig DbConfig) error {
 		return err
 	}
 
+	session.SetMode(mgo.Monotonic, true)
 	log.Println("Connected to MongoDB successfully")
 	/* Initialized database object with global session*/
 	connectionMap[dbConfig.DBName] = Db{mainSession: session, Config: dbConfig}

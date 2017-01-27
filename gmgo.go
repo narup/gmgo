@@ -27,8 +27,9 @@ type Document interface {
 
 // DbConfig represents the configuration params needed for MongoDB connection
 type DbConfig struct {
-	Host, DBName, UserName, Password string
-	Mode                             int
+	HostURL, DBName, UserName, Password string
+	Hosts                               []string
+	Mode                                int
 }
 
 // Db represents database connection which holds reference to global session and configuration for that database.
@@ -186,15 +187,21 @@ func Get(dbName string) (Db, error) {
 func Setup(dbConfig DbConfig) error {
 	log.Println("Connecting to MongoDB...")
 
-	mongoDBDialInfo := &mgo.DialInfo{
-		Addrs:    []string{dbConfig.Host},
-		Timeout:  5 * time.Second,
-		Database: dbConfig.DBName,
-		Username: dbConfig.UserName,
-		Password: dbConfig.Password,
+	var session *mgo.Session
+	var err error
+	if dbConfig.Hosts != nil {
+		mongoDBDialInfo := &mgo.DialInfo{
+			Addrs:    dbConfig.Hosts,
+			Timeout:  10 * time.Second,
+			Database: dbConfig.DBName,
+			Username: dbConfig.UserName,
+			Password: dbConfig.Password,
+		}
+		session, err = mgo.DialWithInfo(mongoDBDialInfo)
+	} else {
+		session, err = mgo.DialWithTimeout(dbConfig.HostURL, 10*time.Second)
 	}
 
-	session, err := mgo.DialWithInfo(mongoDBDialInfo)
 	if err != nil {
 		log.Printf("MongoDB connection failed : %s. Exiting the program.\n", err)
 		return err

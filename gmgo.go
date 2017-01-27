@@ -186,10 +186,13 @@ func Get(dbName string) (Db, error) {
 // multiple MongoDB instances.
 func Setup(dbConfig DbConfig) error {
 	log.Println("Connecting to MongoDB...")
+	if dbConfig.Hosts == nil && dbConfig.HostURL == "" && dbConfig.DBName == "" {
+		return errors.New("Invalid connection info. Missing host and db info")
+	}
 
 	var session *mgo.Session
 	var err error
-	if dbConfig.Hosts != nil {
+	if dbConfig.Hosts != nil && dbConfig.DBName != "" {
 		mongoDBDialInfo := &mgo.DialInfo{
 			Addrs:    dbConfig.Hosts,
 			Timeout:  10 * time.Second,

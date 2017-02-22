@@ -174,6 +174,17 @@ func (s *DbSession) Exists(query Q, document Document) (bool, error) {
 	return true, nil
 }
 
+//Remove removes the given document type based on the query
+func (s *DbSession) Remove(query Q, document Document) error {
+	return s.collection(document.CollectionName()).Remove(query)
+}
+
+//RemoveAll removes all the document matching given selector query
+func (s *DbSession) RemoveAll(query Q, document Document) error {
+	_, err := s.collection(document.CollectionName()).RemoveAll(query)
+	return err
+}
+
 // Get creates new database connection
 func Get(dbName string) (Db, error) {
 	if db, ok := connectionMap[dbName]; ok {

@@ -6,7 +6,7 @@ import (
 )
 
 func TestGMGO(t *testing.T) {
-	dbConfig := DbConfig{Host: "localhost:27017", DBName: "phildb", UserName: "", Password: "", Mode: 1}
+	dbConfig := DbConfig{HostURL: "mongodb://localhost:27017/phildb", DBName: "", UserName: "", Password: "", Mode: 1}
 	err := Setup(dbConfig)
 	if err != nil {
 		t.Errorf("Connection failed %s", err)

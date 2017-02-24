@@ -100,6 +100,11 @@ func (s *DbSession) Update(selector Q, document Document) error {
 	return coll.Update(selector, document)
 }
 
+//UpdateFieldValue updates the single field with a given value for a collection name based query
+func (s *DbSession) UpdateFieldValue(query Q, collectionName, field string, value interface{}) error {
+	return s.collection(collectionName).Update(query, bson.M{"$set": bson.M{field: value}})
+}
+
 // FindByID find the object by id. Returns error if it's not able to find the document. If document is found
 // it's copied to the passed in result object.
 func (s *DbSession) FindByID(id string, result Document) error {

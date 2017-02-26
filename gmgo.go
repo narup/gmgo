@@ -190,6 +190,11 @@ func (s *DbSession) RemoveAll(query Q, document Document) error {
 	return err
 }
 
+// Pipe returns the pipe for a given query and document
+func (s *DbSession) Pipe(query Q, document Document) *mgo.Pipe {
+	return s.collection(document.CollectionName()).Pipe(query)
+}
+
 // Get creates new database connection
 func Get(dbName string) (Db, error) {
 	if db, ok := connectionMap[dbName]; ok {

@@ -191,8 +191,8 @@ func (s *DbSession) RemoveAll(query Q, document Document) error {
 }
 
 // Pipe returns the pipe for a given query and document
-func (s *DbSession) Pipe(query Q, document Document) *mgo.Pipe {
-	return s.collection(document.CollectionName()).Pipe(query)
+func (s *DbSession) Pipe(pipeline interface{}, document Document) *mgo.Pipe {
+	return s.collection(document.CollectionName()).Pipe(pipeline)
 }
 
 // Get creates new database connection

@@ -44,6 +44,15 @@ type DbSession struct {
 	Session *mgo.Session
 }
 
+// File file representation
+type File struct {
+	ID          string
+	Name        string
+	ContentType string
+	ByteLength  int
+	Data        []byte
+}
+
 // Session creates the copy of the main session
 func (db Db) Session() *DbSession {
 	return &DbSession{db: db, Session: db.mainSession.Copy()}
@@ -58,6 +67,11 @@ func (s *DbSession) Clone() *DbSession {
 // Close closes the underlying mgo session
 func (s *DbSession) Close() {
 	s.Session.Close()
+}
+
+//gridFS returns grid fs for session
+func (s *DbSession) gridFS() *mgo.GridFS {
+	return s.Session.DB(s.db.Config.DBName).GridFS("rex_files")
 }
 
 // collection returns a mgo.Collection representation for given collection name and session
@@ -193,6 +207,49 @@ func (s *DbSession) RemoveAll(query Q, document Document) error {
 // Pipe returns the pipe for a given query and document
 func (s *DbSession) Pipe(pipeline interface{}, document Document) *mgo.Pipe {
 	return s.collection(document.CollectionName()).Pipe(pipeline)
+}
+
+//SaveFile saves the given file in a gridfs
+func (s *DbSession) SaveFile(file File) (string, error) {
+	f, err := s.gridFS().Create(file.Name)
+	if err != nil {
+		return "", err
+	}
+	_, err = f.Write(file.Data)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	fileID := f.Id().(string)
+
+	return fileID, nil
+}
+
+//ReadFile read file based on given id
+func (s *DbSession) ReadFile(id string, file *File) error {
+	f, err := s.gridFS().OpenId(bson.ObjectIdHex(id))
+	if err != nil {
+		return err
+	}
+	n := file.ByteLength
+	if n == 0 {
+		n = 8192
+	}
+	b := make([]byte, file.ByteLength)
+	_, err = f.Read(b)
+
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+
+	file.ID = id
+	file.Data = b
+	file.Name = f.Name()
+	file.ContentType = f.ContentType()
+
+	return nil
 }
 
 // Get creates new database connection

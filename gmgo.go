@@ -221,9 +221,9 @@ func (s *DbSession) SaveFile(file File) (string, error) {
 	}
 	defer f.Close()
 
-	fileID := f.Id().(string)
+	fileID := f.Id().(bson.ObjectId)
 
-	return fileID, nil
+	return fileID.Hex(), nil
 }
 
 //ReadFile read file based on given id

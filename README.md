@@ -28,9 +28,12 @@ func (user User) CollectionName() string {
 ####################
 
 func saveNewUser() {
+   session := userDB.Session()
+   defer session.Close()
+   
    user := &User{Name:'Puran', Email:'puran@xyz.com'}
    user.Id = bson.NewObjectId()
-   userId, err := userDB.Save(user)
+   userId, err := session.Save(user)
    if err != nil {
 	log.Fatalf("Error saving user : %s.\n", err)
    }
@@ -39,11 +42,29 @@ func saveNewUser() {
 }
 
 func findUser(userId string) *User {
+    session := userDB.Session()
+    defer session.Close()
+   
     user := new(User)
-    if err := userDB.FindById(userId, user); err != nil {
+    if err := session.FindByID(userId, user); err != nil {
         return nil
     }
     return user
+}
+
+//Find all users
+func findAllUsers() {
+    session := userDB.Session()
+    defer session.Close()
+
+    users, err := session.FindAll(gmgo.Q{}, new(User)) //Note user pointer is passed to identify the collection type etc.
+    if err != nil {
+    	fmt.Printf("Error fetching users %s", err)
+    } else {
+	for _, user := range users {
+	   fmt.Println(user.Name)
+        }
+    }
 }
 
 func setupUserDB() {
@@ -69,15 +90,7 @@ func main() {
 	fmt.Printf("Couldn't find user")
     }
 	
-    //Find all users
-    users, err := db.FindAll(gmgo.Q{}, new(User)) //Note user pointer is passed to identify the collection type etc.
-    if err != nil {
-    	fmt.Printf("Error fetching users %s", err)
-    } else {
-	for _, user := range users {
-	   fmt.Println(user.Name)
-        }
-    }
+    findAllUsers()
 }
 
 ```

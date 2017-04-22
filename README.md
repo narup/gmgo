@@ -8,7 +8,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/phil-inc/gmgo"
+	"github.com/narup/gmgo"
 	"log"
 )
 

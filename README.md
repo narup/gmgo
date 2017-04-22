@@ -40,7 +40,7 @@ func saveNewUser() {
 }
 
 func findUser(userId string) *User {
-	user := &User{}
+	user := new(User)
 	if err := userDB.FindById(userId, user); err != nil {
 		return nil
 	}

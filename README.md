@@ -13,7 +13,6 @@ import (
 )
 
 var userDB gmgo.Db
-var orderDB gmgo.Db
 
 ####################
 type User struct {
@@ -23,42 +22,28 @@ type User struct {
 
 // Each of your data model that needs to be persisted should implment DBObject interface
 func (user User) CollectionName() string {
-	return "user"
+    return "user"
 }
 
 ####################
 
 func saveNewUser() {
-	user := &User{Name:'Puran', Email:'puran@xyz.com'}
-	user.Id = bson.NewObjectId()
-	userId, err := userDB.Save(user)
-	if err != nil {
-		log.Fatalf("Error saving user : %s.\n", err)
-	}
+   user := &User{Name:'Puran', Email:'puran@xyz.com'}
+   user.Id = bson.NewObjectId()
+   userId, err := userDB.Save(user)
+   if err != nil {
+	log.Fatalf("Error saving user : %s.\n", err)
+   }
 
-	fmt.Printf("User id %s", userId)
+   fmt.Printf("User id %s", userId)
 }
 
 func findUser(userId string) *User {
-	user := new(User)
-	if err := userDB.FindById(userId, user); err != nil {
-		return nil
-	}
-	return user
-}
-
-func setupOrderDB() {
-    if orderDbErr := gmgo.Setup(gmgo.DbConfig{"localhost:27017", "orderdb", "", ""}); orderDbErr != nil {
-        log.Fatalf("Database connection error : %s.\n", userDbErr)
-        return
+    user := new(User)
+    if err := userDB.FindById(userId, user); err != nil {
+        return nil
     }
-
-    newOrderDb, orderDbErr := gmgo.New("orderdb")
-    if orderDbErr != nil {
-        log.Fatalf("Db connection error : %s.\n", err)
-    }
-
-    orderDb = newDb
+    return user
 }
 
 func setupUserDB() {
@@ -75,28 +60,24 @@ func setupUserDB() {
 }
 
 func main() {
-
-	//setup Mongo database connection. You can setup multiple db connections
+    //setup Mongo database connection. You can setup multiple db connections
     setupUserDB()
-    setupOrderDB()
-
-	user := findUser("56596608e4b07ceddcfad96e")
-	if user != nil {
-		fmt.Printf("User name:%s\n", user.Name)
-	} else {
-		fmt.Printf("Couldn't find user")
-	}
+    user := findUser("56596608e4b07ceddcfad96e")
+    if user != nil {
+    	fmt.Printf("User name:%s\n", user.Name)
+    } else {
+	fmt.Printf("Couldn't find user")
+    }
 	
-	//Find all users
-	result, err := db.FindAll(bson.M{}, new(User)) //Note user pointer is passed to identify the collection type etc.
-	if err != nil {
-		fmt.Printf("Error fetching users %s", err)
-	} else {
-		users := result.([]*User)
-		for _, user := range users {
-			fmt.Println(user.Name)
-		}
-	}
+    //Find all users
+    users, err := db.FindAll(gmgo.Q{}, new(User)) //Note user pointer is passed to identify the collection type etc.
+    if err != nil {
+    	fmt.Printf("Error fetching users %s", err)
+    } else {
+	for _, user := range users {
+	   fmt.Println(user.Name)
+        }
+    }
 }
 
 ```

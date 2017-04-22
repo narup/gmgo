@@ -70,8 +70,8 @@ func (s *DbSession) Close() {
 }
 
 //gridFS returns grid fs for session
-func (s *DbSession) gridFS() *mgo.GridFS {
-	return s.Session.DB(s.db.Config.DBName).GridFS("rex_files")
+func (s *DbSession) gridFS(prefix string) *mgo.GridFS {
+	return s.Session.DB(s.db.Config.DBName).GridFS(prefix)
 }
 
 // collection returns a mgo.Collection representation for given collection name and session
@@ -210,11 +210,13 @@ func (s *DbSession) Pipe(pipeline interface{}, document Document) *mgo.Pipe {
 }
 
 //SaveFile saves the given file in a gridfs
-func (s *DbSession) SaveFile(file File) (string, error) {
-	f, err := s.gridFS().Create(file.Name)
+func (s *DbSession) SaveFile(file File, prefix string) (string, error) {
+	f, err := s.gridFS(prefix).Create(file.Name)
 	if err != nil {
 		return "", err
 	}
+
+	f.SetContentType(file.ContentType)
 	_, err = f.Write(file.Data)
 	if err != nil {
 		return "", err
@@ -227,8 +229,8 @@ func (s *DbSession) SaveFile(file File) (string, error) {
 }
 
 //ReadFile read file based on given id
-func (s *DbSession) ReadFile(id string, file *File) error {
-	f, err := s.gridFS().OpenId(bson.ObjectIdHex(id))
+func (s *DbSession) ReadFile(id, prefix string, file *File) error {
+	f, err := s.gridFS(prefix).OpenId(bson.ObjectIdHex(id))
 	if err != nil {
 		return err
 	}

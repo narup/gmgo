@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestGMGO(t *testing.T) {
+func xxTestGMGO(t *testing.T) {
 	dbConfig := DbConfig{HostURL: "mongodb://localhost:27017/phildb", DBName: "phildb", UserName: "", Password: "", Mode: 1}
 	err := Setup(dbConfig)
 	if err != nil {
@@ -21,7 +21,7 @@ func TestGMGO(t *testing.T) {
 
 	file := new(File)
 	file.ByteLength = 1024
-	err = philDB.Session().ReadFile("5713f1b0e4b067fc28d6fbaa", file)
+	err = philDB.Session().ReadFile("5713f1b0e4b067fc28d6fbaa", "rex_files", file)
 	if err != nil {
 		t.Errorf("File read failed %s", err)
 		return

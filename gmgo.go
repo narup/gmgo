@@ -234,11 +234,11 @@ func (s *DbSession) ReadFile(id, prefix string, file *File) error {
 	if err != nil {
 		return err
 	}
-	n := file.ByteLength
+	n := f.Size()
 	if n == 0 {
 		n = 8192
 	}
-	b := make([]byte, file.ByteLength)
+	b := make([]byte, n)
 	_, err = f.Read(b)
 
 	err = f.Close()
@@ -290,8 +290,10 @@ func Setup(dbConfig DbConfig) error {
 		return err
 	}
 
-	session.SetMode(mgo.Monotonic, true)
+	//starting with primary preferred, but individual query can change mode per copied session
+	session.SetMode(mgo.Strong, true)
 	log.Println("Connected to MongoDB successfully")
+
 	/* Initialized database object with global session*/
 	connectionMap[dbConfig.DBName] = Db{mainSession: session, Config: dbConfig}
 

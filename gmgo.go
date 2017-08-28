@@ -53,7 +53,7 @@ type File struct {
 	Data        []byte
 }
 
-// Session creates the copy of the main session
+// Session creates the copy of the gmgo session
 func (db Db) Session() *DbSession {
 	return &DbSession{db: db, Session: db.mainSession.Copy()}
 }

@@ -3,6 +3,7 @@ package gmgo
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/rwynn/gtm"
 )
@@ -32,68 +33,56 @@ type TailEventHandler interface {
 	HandleError(err error)
 }
 
-//Sanitizer sanitizes data before saving it to destination
-type Sanitizer interface {
-	RequireSanitizing(collection string) bool
-	Sanitize(collection string, data map[string]interface{}) map[string]interface{}
-}
-
-//OutputConnector connector for output db
-type OutputConnector struct {
-	ConnectionURL string
-}
-
 //MongoTail handles MongoDB tailing event coordination and also
 //update destination dbs
 type MongoTail struct {
-	Sanitizer        Sanitizer
-	EventHandler     TailEventHandler
-	ReImport         bool
-	MappingFilePath  string
-	OutputConnectors []OutputConnector
+	EventHandler TailEventHandler
+	ReImport     bool
 }
 
 //Start - starts tailing mongodb oplog.
 func (mt MongoTail) Start(dbSession *DbSession) {
 	// nil options get initialized to gtm.DefaultOptions()
-	options := gtm.DefaultOptions()
+	bd := time.Duration(750) * time.Millisecond
+	options := &gtm.Options{
+		After:               nil,        // if nil defaults to LastOpTimestamp
+		Filter:              nil,        // only receive inserts in this collection
+		OpLogDatabaseName:   nil,        // defaults to "local"
+		OpLogCollectionName: nil,        // defaults to a collection prefixed "oplog."
+		CursorTimeout:       nil,        // defaults to 100s
+		ChannelSize:         20,         // defaults to 20
+		BufferSize:          20,         // defaults to 50. used to batch fetch documents on bursts of activity
+		BufferDuration:      bd,         // defaults to 750 ms. after this timeout the batch is force fetched
+		WorkerCount:         5,          // defaults to 1. number of go routines batch fetching concurrently
+		Ordering:            gtm.Oplog,  // defaults to gtm.Oplog. ordering guarantee of events on the output channel
+		UpdateDataAsDelta:   false,      // set to true to only receive delta information in the Data field on updates (info straight from oplog)
+		DirectReadNs:        []string{}, // set to a slice of namespaces to read data directly from bypassing the oplog
+		DirectReadLimit:     5000,       // defaults to 100. the maximum number of documents to return in each direct read query
+		DirectReadersPerCol: 10,
+		DirectReadFilter:    nil,
+		DirectReadBatchSize: 500,
+	}
 	ctx := gtm.Start(dbSession.Session, options)
 	// ctx.OpC is a channel to read ops from
 	// ctx.ErrC is a channel to read errors from
 	// ctx.Stop() stops all go routines started by gtm.Start
 	go func() {
 		ctx.DirectReadWg.Wait()
-		fmt.Println("Imported all the collections")
+		fmt.Println("[GMGO] imported all the collections")
 	}()
 
 	mt.listen(ctx)
 }
 
 func (mt MongoTail) listen(ctx *gtm.OpCtx) {
-	log.Printf("Listening for MongoDB oplog events")
+	log.Printf("[GMGO] listening for MongoDB oplog events")
 	for {
 		// loop forever receiving events
 		select {
 		case err := <-ctx.ErrC:
 			mt.EventHandler.HandleError(err)
 		case op := <-ctx.OpC:
-			msg := fmt.Sprintf(`Got op <%v> for object <%v> 
-			in database <%v>
-			and collection <%v>
-			and timestamp <%v>`,
-				op.Operation, op.Id, op.GetDatabase(),
-				op.GetCollection(), op.Timestamp)
-			fmt.Println(msg)
-
 			mt.dispatchEvents(op)
-
-			//sanitize if needed
-			if mt.Sanitizer.RequireSanitizing(op.GetCollection()) {
-				sanitizedData := mt.Sanitizer.Sanitize(op.GetCollection(), op.Data)
-				mt.writeOutput(sanitizedData)
-			} else {
-				mt.writeOutput(op.Data)
-			}
 		}
 	}
 }
@@ -111,8 +100,4 @@ func (mt MongoTail) dispatchEvents(op *gtm.Op) {
 	if op.IsDrop() {
 		mt.EventHandler.HandleDeleteEvent(newTailEvent(op))
 	}
-}
-
-func (mt MongoTail) writeOutput(data map[string]interface{}) {
-
 }

@@ -5,23 +5,31 @@ import (
 	"testing"
 )
 
-func xxTestGMGO(t *testing.T) {
+func testDBSession() *DbSession {
 	dbConfig := DbConfig{HostURL: "mongodb://localhost:27017/phildb", DBName: "phildb", UserName: "", Password: "", Mode: 1}
 	err := Setup(dbConfig)
 	if err != nil {
-		t.Errorf("Connection failed %s", err)
+		fmt.Printf("Connection failed %s", err)
+		return nil
 	}
 
 	philDB, err := Get("phildb")
 	if err != nil {
-		t.Errorf("Get db failed %s", err)
+		fmt.Printf("Get db failed %s", err)
+		return nil
 	}
 
 	fmt.Println(philDB.Config.DBName)
 
+	return philDB.Session()
+}
+
+func xxTestReadGridFSFile(t *testing.T) {
+	session := testDBSession()
+
 	file := new(File)
 	file.ByteLength = 1024
-	err = philDB.Session().ReadFile("5713f1b0e4b067fc28d6fbaa", "rex_files", file)
+	err := session.ReadFile("5713f1b0e4b067fc28d6fbaa", "rex_files", file)
 	if err != nil {
 		t.Errorf("File read failed %s", err)
 		return

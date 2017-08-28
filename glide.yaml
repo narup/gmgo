@@ -4,3 +4,7 @@ import:
   subpackages:
   - bson
 - package: gopkg.in/tomb.v2
+- package: github.com/rwynn/gtm
+- package: github.com/serialx/hashring
+- package: github.com/BurntSushi/toml
+  version: v0.3.0

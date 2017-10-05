@@ -99,10 +99,16 @@ func (s *DbSession) executeFindAll(query Q, document Document, qf queryFunc) (in
 	return results(documents)
 }
 
+// Collection returns a mgo.Collection representation for given document
+func (s *DbSession) Collection(d Document) *mgo.Collection {
+	return s.Session.DB(s.db.Config.DBName).C(d.CollectionName())
+}
+
 // Save inserts the given document that represents the collection to the database.
 func (s *DbSession) Save(document Document) error {
 	coll := s.collection(document.CollectionName())
-	if err := coll.Insert(document); err != nil {
+	err := coll.Insert(document)
+	if err != nil {
 		return err
 	}
 	return nil

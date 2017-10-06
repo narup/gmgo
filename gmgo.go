@@ -20,19 +20,10 @@ type queryFunc func(q *mgo.Query, result interface{}) error
 // connectionMap holds all the db connection per database name
 var connectionMap = make(map[string]Db)
 
-// Document interface implemented by structs that needs to be persisted. It should provide collection name,
-// as in the database. Also, a way to create new object id before saving.
-type Document interface {
-	CollectionName() string
-}
-
-//DocumentIterator used to iterate over results
-type DocumentIterator struct {
-	iterator *mgo.Iter
-	query    *mgo.Query
-	pageSize int
-	document Document
-	loaded   bool
+// Db represents database connection which holds reference to global session and configuration for that database.
+type Db struct {
+	Config      DbConfig
+	mainSession *mgo.Session
 }
 
 // DbConfig represents the configuration params needed for MongoDB connection
@@ -42,16 +33,54 @@ type DbConfig struct {
 	Mode                                int
 }
 
-// Db represents database connection which holds reference to global session and configuration for that database.
-type Db struct {
-	Config      DbConfig
-	mainSession *mgo.Session
-}
-
 // DbSession mgo session wrapper
 type DbSession struct {
 	db      Db
 	Session *mgo.Session
+}
+
+// Document interface implemented by structs that needs to be persisted. It should provide collection name,
+// as in the database. Also, a way to create new object id before saving.
+type Document interface {
+	CollectionName() string
+}
+
+//DocumentIterator is used to iterate over results and also provides a way to configure query using IteractorConfig
+//For example:
+//	session := db.Session()
+//	defer session.Close()
+//
+//  pd := session.DocumentIterator(Q{"state":"CA"}, new(user))
+//  pd.Load(IteratorConfig{PageSize: 200, Snapshot: true})
+//  for pd.HasMore() {
+//		result, err := pd.Next()
+//		if err != nil {
+//			println(err.Error())
+//			return
+//		}
+//
+//      u := result.(*user)
+//  }
+type DocumentIterator struct {
+	iterator *mgo.Iter
+	query    *mgo.Query
+	pageSize int
+	document Document
+	loaded   bool
+}
+
+//IteratorConfig defines different iterator config to load the document interator
+type IteratorConfig struct {
+	//PageSize is used as a batch size. See mgo.Iter.Batch() for more details.
+	//Default value used by MongoDB is 100. So, any value less than 100 is ignored
+	PageSize int
+	//Limit used limit the number of documents
+	Limit int
+	//Snashopt ($snapshot) operator prevents the cursor from returning a document more than
+	//once because an intervening write operation results in a move of the document.
+	Snapshot bool
+	//SortBy list of field names to sort the result
+	SortBy []string
 }
 
 // File file representation
@@ -63,14 +92,6 @@ type File struct {
 	Data        []byte
 }
 
-//IteratorConfig defines different iterator config to load the document interator
-type IteratorConfig struct {
-	PageSize int
-	Limit    int
-	Snapshot bool
-	SortBy   []string
-}
-
 func (pd *DocumentIterator) loadInternal() {
 	if pd.loaded {
 		return
@@ -80,7 +101,14 @@ func (pd *DocumentIterator) loadInternal() {
 	pd.Load(ic)
 }
 
-//Load loads the document iterator using IteratorConfig.
+//Load loads the document iterator using IteratorConfig
+//For example:
+// Limit and sort by user full name
+// itr := session.DocumentIterator(Q{"state": "CA"}, new(user))
+// itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"fullName"}})
+//
+// fetch with page size
+// pd.Load(IteratorConfig{PageSize: 200})
 func (pd *DocumentIterator) Load(cfg IteratorConfig) {
 	if cfg.PageSize >= 100 {
 		pd.query = pd.query.Batch(cfg.PageSize)

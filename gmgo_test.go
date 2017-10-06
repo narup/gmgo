@@ -66,14 +66,33 @@ func xxTestPagedQuery(t *testing.T) {
 
 		u := result.(*user)
 		if dedupMap[u.ID.Hex()] == "" {
-			session.UpdateFieldValue(Q{"_id": u.ID}, u.CollectionName(), "phoneNumber", "5102892507")
+			session.UpdateFieldValue(Q{"_id": u.ID}, u.CollectionName(), "phoneNumber", "")
 			dedupMap[u.ID.Hex()] = "1"
 		} else {
 			//test if there are infact documents returning more than once.
 			println(u.ID.Hex())
+			t.Error("Test failed")
 		}
 	}
 	println(count)
+}
+
+func xxTestSorting(t *testing.T) {
+	session := testDBSession()
+	defer session.Close()
+
+	itr := session.DocumentIterator(Q{"state": "CA"}, new(user))
+	itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"fullName"}})
+
+	result, err := itr.All(new(user))
+	if err != nil {
+		println(err)
+		return
+	}
+	users := result.([]*user)
+	for _, usr := range users {
+		println(usr.FullName)
+	}
 }
 
 func xxTestBatchAll(t *testing.T) {

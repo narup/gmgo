@@ -20,7 +20,7 @@ type User struct {
     Email string `json:"email" bson:"email"`
 }
 
-// Each of your data model that needs to be persisted should implment DBObject interface
+// Each of your data model that needs to be persisted should implment gmgo.Document interface
 func (user User) CollectionName() string {
     return "user"
 }
@@ -61,10 +61,33 @@ func findAllUsers() {
     if err != nil {
     	fmt.Printf("Error fetching users %s", err)
     } else {
-	for _, user := range users {
-	   fmt.Println(user.Name)
+	    for _, user := range users {
+	        fmt.Println(user.Name)
         }
     }
+}
+
+func findUsingIterator() ([]*user, error) {
+	session := testDBSession()
+	defer session.Close()
+
+    users := make([]*user, 0)
+
+	itr := session.DocumentIterator(Q{}, new(user))
+	//The Snashopt ($snapshot) operator prevents the cursor from returning a document more than
+	//once because an intervening write operation results in a move of the document.
+	itr.Load(IteratorConfig{PageSize: 200, Snapshot: true})
+	for pd.HasMore() {
+		result, err := pd.Next()
+		if err != nil {
+			return nil, err 
+		}
+
+		u := result.(*user)
+		users = append(users, u)
+	}
+	
+    return users, nil 
 }
 
 func setupUserDB() {

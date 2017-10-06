@@ -47,20 +47,20 @@ type Document interface {
 
 //DocumentIterator is used to iterate over results and also provides a way to configure query using IteractorConfig
 //For example:
-//	session := db.Session()
-//	defer session.Close()
+//		session := db.Session()
+//		defer session.Close()
 //
-//  pd := session.DocumentIterator(Q{"state":"CA"}, new(user))
-//  pd.Load(IteratorConfig{PageSize: 200, Snapshot: true})
-//  for pd.HasMore() {
-//		result, err := pd.Next()
-//		if err != nil {
-//			println(err.Error())
-//			return
-//		}
+//  	pd := session.DocumentIterator(Q{"state":"CA"}, new(user))
+//  	pd.Load(IteratorConfig{PageSize: 200, Snapshot: true})
+//  	for pd.HasMore() {
+//			result, err := pd.Next()
+//			if err != nil {
+//				println(err.Error())
+//				return
+//			}
 //
-//      u := result.(*user)
-//  }
+//      	u := result.(*user)
+//  	}
 type DocumentIterator struct {
 	iterator *mgo.Iter
 	query    *mgo.Query
@@ -104,11 +104,11 @@ func (pd *DocumentIterator) loadInternal() {
 //Load loads the document iterator using IteratorConfig
 //For example:
 // Limit and sort by user full name
-// itr := session.DocumentIterator(Q{"state": "CA"}, new(user))
-// itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"fullName"}})
+// 	itr := session.DocumentIterator(Q{"state": "CA"}, new(user))
+// 	itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"fullName"}})
 //
 // fetch with page size
-// pd.Load(IteratorConfig{PageSize: 200})
+// 	pd.Load(IteratorConfig{PageSize: 200})
 func (pd *DocumentIterator) Load(cfg IteratorConfig) {
 	if cfg.PageSize >= 100 {
 		pd.query = pd.query.Batch(cfg.PageSize)

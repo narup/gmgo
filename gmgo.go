@@ -47,6 +47,7 @@ type Document interface {
 
 //DocumentIterator is used to iterate over results and also provides a way to configure query using IteractorConfig
 //For example:
+//
 //		session := db.Session()
 //		defer session.Close()
 //

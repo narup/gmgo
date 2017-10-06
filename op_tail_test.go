@@ -26,7 +26,7 @@ func (me mongoEventHandler) HandleError(err error) {
 	fmt.Printf("%s", err)
 }
 
-func TestTailing(t *testing.T) {
+func xxTestTailing(t *testing.T) {
 	session := testDBSession()
 
 	mt := new(MongoTail)

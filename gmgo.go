@@ -2,6 +2,7 @@ package gmgo
 
 import (
 	"errors"
+	"strings"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -23,6 +24,15 @@ var connectionMap = make(map[string]Db)
 // as in the database. Also, a way to create new object id before saving.
 type Document interface {
 	CollectionName() string
+}
+
+//DocumentIterator used to iterate over results
+type DocumentIterator struct {
+	iterator *mgo.Iter
+	query    *mgo.Query
+	pageSize int
+	document Document
+	loaded   bool
 }
 
 // DbConfig represents the configuration params needed for MongoDB connection
@@ -51,6 +61,79 @@ type File struct {
 	ContentType string
 	ByteLength  int
 	Data        []byte
+}
+
+//IteratorConfig defines different iterator config to load the document interator
+type IteratorConfig struct {
+	PageSize int
+	Limit    int
+	Snapshot bool
+	SortBy   []string
+}
+
+func (pd *DocumentIterator) loadInternal() {
+	if pd.loaded {
+		return
+	}
+
+	ic := IteratorConfig{Snapshot: false, PageSize: 100, Limit: -1}
+	pd.Load(ic)
+}
+
+//Load loads the document iterator using IteratorConfig.
+func (pd *DocumentIterator) Load(cfg IteratorConfig) {
+	if cfg.PageSize >= 100 {
+		pd.query = pd.query.Batch(cfg.PageSize)
+	}
+	if cfg.Limit > 0 {
+		pd.query = pd.query.Limit(cfg.Limit)
+	}
+	if cfg.Snapshot {
+		pd.query = pd.query.Snapshot()
+	}
+	if cfg.SortBy != nil && len(cfg.SortBy) > 0 {
+		pd.query = pd.query.Sort(strings.Join(cfg.SortBy, ","))
+	}
+
+	pd.iterator = pd.query.Iter()
+	pd.loaded = true
+}
+
+//HasMore returns true if paged document has still more documents to fetch.
+func (pd *DocumentIterator) HasMore() bool {
+	pd.loadInternal()
+	return !pd.iterator.Done()
+}
+
+//Close closes the document iterator
+func (pd *DocumentIterator) Close() error {
+	pd.loadInternal()
+	return pd.iterator.Close()
+}
+
+//All returns all the documents in the iterator.
+func (pd *DocumentIterator) All(document Document) (interface{}, error) {
+	pd.loadInternal()
+
+	documents := slice(document)
+	err := pd.iterator.All(documents)
+	if err != nil {
+		return nil, err
+	}
+
+	return results(documents)
+}
+
+//Next returns the next result object in the paged document. If there's no element it will check for error
+//and return the error if there's error.
+func (pd *DocumentIterator) Next() (interface{}, error) {
+	pd.loadInternal()
+
+	hasNext := pd.iterator.Next(pd.document)
+	if hasNext {
+		return pd.document, nil
+	}
+	return nil, pd.iterator.Err()
 }
 
 // Session creates the copy of the gmgo session
@@ -185,6 +268,18 @@ func (s *DbSession) FindWithLimit(limit int, query Q, document Document) (interf
 		return q.Limit(limit).All(result)
 	}
 	return s.executeFindAll(query, document, fn)
+}
+
+//DocumentIterator returns the document iterator which could be used to fetch documents
+//as batch with batch size and other config params
+func (s *DbSession) DocumentIterator(query Q, document Document) *DocumentIterator {
+	q := s.findQuery(document, query)
+
+	iter := new(DocumentIterator)
+	iter.document = document
+	iter.query = q
+
+	return iter
 }
 
 // Exists check if the document exists for given query

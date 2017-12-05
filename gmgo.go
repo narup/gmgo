@@ -51,10 +51,11 @@ type Document interface {
 //	session := db.Session()
 //	defer session.Close()
 //
-//	pd := session.DocumentIterator(Q{"state":"CA"}, new(user))
-//	pd.Load(IteratorConfig{PageSize: 200, Snapshot: true})
+//	pd := session.DocumentIterator(gmgo.Q{"state":"CA"}, "user")
+//	pd.Load(gmgo.IteratorConfig{PageSize: 200, Snapshot: true})
 //	for pd.HasMore() {
-//		result, err := pd.Next()
+//      usr := new(user)
+//		result, err := pd.Next(&usr)
 //		if err != nil {
 //			println(err.Error())
 //			return
@@ -65,7 +66,6 @@ type DocumentIterator struct {
 	iterator *mgo.Iter
 	query    *mgo.Query
 	pageSize int
-	document Document
 	loaded   bool
 }
 
@@ -133,6 +133,18 @@ func (pd *DocumentIterator) HasMore() bool {
 	return !pd.iterator.Done()
 }
 
+//Next returns the next result object in the paged document. If there's no element it will check for error
+//and return the error if there's error.
+func (pd *DocumentIterator) Next(d Document) error {
+	pd.loadInternal()
+
+	hasNext := pd.iterator.Next(d)
+	if hasNext {
+		return nil
+	}
+	return pd.iterator.Err()
+}
+
 //Close closes the document iterator
 func (pd *DocumentIterator) Close() error {
 	pd.loadInternal()
@@ -150,18 +162,6 @@ func (pd *DocumentIterator) All(document Document) (interface{}, error) {
 	}
 
 	return results(documents)
-}
-
-//Next returns the next result object in the paged document. If there's no element it will check for error
-//and return the error if there's error.
-func (pd *DocumentIterator) Next() (interface{}, error) {
-	pd.loadInternal()
-
-	hasNext := pd.iterator.Next(pd.document)
-	if hasNext {
-		return pd.document, nil
-	}
-	return nil, pd.iterator.Err()
 }
 
 // Session creates the copy of the gmgo session
@@ -194,6 +194,12 @@ func (s *DbSession) collection(collectionName string) *mgo.Collection {
 func (s *DbSession) findQuery(d Document, q Q) *mgo.Query {
 	//collection pointer for the given document
 	return s.collection(d.CollectionName()).Find(q)
+}
+
+// findQueryByCollectionName constrcuts the find query based on given query params
+func (s *DbSession) findQueryByCollectionName(collection string, q Q) *mgo.Query {
+	//collection pointer for the given document
+	return s.collection(collection).Find(q)
 }
 
 // executeFindAll executes find all query
@@ -300,11 +306,9 @@ func (s *DbSession) FindWithLimit(limit int, query Q, document Document) (interf
 
 //DocumentIterator returns the document iterator which could be used to fetch documents
 //as batch with batch size and other config params
-func (s *DbSession) DocumentIterator(query Q, document Document) *DocumentIterator {
-	q := s.findQuery(document, query)
-
+func (s *DbSession) DocumentIterator(query Q, collection string) *DocumentIterator {
+	q := s.findQueryByCollectionName(collection, query)
 	iter := new(DocumentIterator)
-	iter.document = document
 	iter.query = q
 
 	return iter

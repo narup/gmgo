@@ -45,44 +45,42 @@ func (u *user) CollectionName() string {
 	return "rexUser"
 }
 
+var TotalUserCount = -1
+
 func xxTestPagedQuery(t *testing.T) {
 	session := testDBSession()
 	defer session.Close()
 
 	count := 0
-	dedupMap := make(map[string]string)
-
-	pd := session.DocumentIterator(Q{}, new(user))
+	pd := session.DocumentIterator(Q{"state": "CA"}, "rexUser")
 	//The Snashopt ($snapshot) operator prevents the cursor from returning a document more than
 	//once because an intervening write operation results in a move of the document.
-	pd.Load(IteratorConfig{PageSize: 200, Snapshot: true})
+	pd.Load(IteratorConfig{PageSize: 50, Snapshot: true})
 	for pd.HasMore() {
-		count = count + 1
-		result, err := pd.Next()
+		usr := new(user)
+		err := pd.Next(usr)
 		if err != nil {
 			println(err.Error())
 			return
 		}
-
-		u := result.(*user)
-		if dedupMap[u.ID.Hex()] == "" {
-			session.UpdateFieldValue(Q{"_id": u.ID}, u.CollectionName(), "phoneNumber", "")
-			dedupMap[u.ID.Hex()] = "1"
-		} else {
-			//test if there are infact documents returning more than once.
-			println(u.ID.Hex())
-			t.Error("Test failed")
-		}
+		count = count + 1
 	}
-	println(count)
+
+	if TotalUserCount == -1 {
+		println("Test failed. Set the value of TotalUserCount")
+	} else if count == TotalUserCount {
+		println("Test passed")
+	} else {
+		println("Test failed")
+	}
 }
 
 func xxTestSorting(t *testing.T) {
 	session := testDBSession()
 	defer session.Close()
 
-	itr := session.DocumentIterator(Q{"state": "CA"}, new(user))
-	itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"fullName"}})
+	itr := session.DocumentIterator(Q{"state": "CA"}, "rexUser")
+	itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"-_id"}})
 
 	result, err := itr.All(new(user))
 	if err != nil {
@@ -91,7 +89,7 @@ func xxTestSorting(t *testing.T) {
 	}
 	users := result.([]*user)
 	for _, usr := range users {
-		println(usr.FullName)
+		println(usr.ID.Hex() + " -- " + usr.CreatedDate.String())
 	}
 }
 
@@ -99,7 +97,7 @@ func xxTestBatchAll(t *testing.T) {
 	session := testDBSession()
 	defer session.Close()
 
-	itr := session.DocumentIterator(Q{"state": "CA"}, new(user))
+	itr := session.DocumentIterator(Q{"state": "CA"}, "rexUser")
 	itr.Load(IteratorConfig{})
 	result, err := itr.All(new(user))
 	if err != nil {

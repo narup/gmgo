@@ -73,18 +73,17 @@ func findUsingIterator() ([]*user, error) {
 
     users := make([]*user, 0)
 
-	itr := session.DocumentIterator(Q{}, new(user))
-	//The Snashopt ($snapshot) operator prevents the cursor from returning a document more than
-	//once because an intervening write operation results in a move of the document.
-	itr.Load(IteratorConfig{PageSize: 200, Snapshot: true})
-	for pd.HasMore() {
-		result, err := pd.Next()
-		if err != nil {
-			return nil, err 
-		}
+	itr := session.DocumentIterator(Q{"state": "CA"}, "user")
+	itr.Load(IteratorConfig{Limit: 20, SortBy: []string{"-_id"}})
 
-		u := result.(*user)
-		users = append(users, u)
+	result, err := itr.All(new(user))
+	if err != nil {
+		println(err)
+		return
+	}
+	users := result.([]*user)
+	for _, usr := range users {
+		println(usr.ID.Hex() + " -- " + usr.CreatedDate.String())
 	}
 	
     return users, nil 

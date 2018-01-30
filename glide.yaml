@@ -5,6 +5,7 @@ import:
   - bson
 - package: gopkg.in/tomb.v2
 - package: github.com/rwynn/gtm
+  version: 8c31a77564748098828132040fdd04cbc9501ac8
 - package: github.com/serialx/hashring
 - package: github.com/BurntSushi/toml
   version: v0.3.0

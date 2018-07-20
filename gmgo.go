@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	mgo "gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 	"gopkg.in/mgo.v2/bson"
 
 	"log"

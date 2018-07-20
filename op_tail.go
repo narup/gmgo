@@ -57,10 +57,7 @@ func (mt MongoTail) Start(dbSession *DbSession) {
 		Ordering:            gtm.Oplog,  // defaults to gtm.Oplog. ordering guarantee of events on the output channel
 		UpdateDataAsDelta:   false,      // set to true to only receive delta information in the Data field on updates (info straight from oplog)
 		DirectReadNs:        []string{}, // set to a slice of namespaces to read data directly from bypassing the oplog
-		DirectReadLimit:     5000,       // defaults to 100. the maximum number of documents to return in each direct read query
-		DirectReadersPerCol: 10,
 		DirectReadFilter:    nil,
-		DirectReadBatchSize: 500,
 	}
 	ctx := gtm.Start(dbSession.Session, options)
 	// ctx.OpC is a channel to read ops from

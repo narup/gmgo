@@ -245,6 +245,9 @@ func (s *DbSession) UpdateFieldValue(query Q, collectionName, field string, valu
 // FindByID find the object by id. Returns error if it's not able to find the document. If document is found
 // it's copied to the passed in result object.
 func (s *DbSession) FindByID(id string, result Document) error {
+	if !bson.IsObjectIdHex(id) {
+		return errors.New("invalid id")
+	}
 	coll := s.collection(result.CollectionName())
 	if err := coll.FindId(bson.ObjectIdHex(id)).One(result); err != nil {
 		if err.Error() != mgo.ErrNotFound.Error() {

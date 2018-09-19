@@ -181,6 +181,14 @@ func (pd *DocumentIterator) FetchNext(d interface{}) bool {
 	return false
 }
 
+//Error returns iteration error
+func (pd *DocumentIterator) Error() error {
+	if pd.err != nil {
+		return pd.err
+	}
+	return pd.iterator.Err()
+}
+
 //IsTimeOut returns true if the iterator timed out
 func (pd *DocumentIterator) IsTimeOut() bool {
 	return pd.iterator.Timeout()

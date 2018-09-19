@@ -67,6 +67,7 @@ type DocumentIterator struct {
 	query    *mgo.Query
 	pageSize int
 	loaded   bool
+	err      error
 }
 
 //IteratorConfig defines different iterator config to load the document interator
@@ -128,6 +129,7 @@ func (pd *DocumentIterator) Load(cfg IteratorConfig) {
 }
 
 //HasMore returns true if paged document has still more documents to fetch.
+//DEPRECATED Use FetchNext in favor of this
 func (pd *DocumentIterator) HasMore() bool {
 	pd.loadInternal()
 	return !pd.iterator.Done()
@@ -135,6 +137,7 @@ func (pd *DocumentIterator) HasMore() bool {
 
 //Next returns the next result object in the paged document. If there's no element it will check for error
 //and return the error if there's error.
+//DEPRECATED - Use FetchNext in favor of this
 func (pd *DocumentIterator) Next(d Document) error {
 	pd.loadInternal()
 
@@ -143,6 +146,52 @@ func (pd *DocumentIterator) Next(d Document) error {
 		return nil
 	}
 	return pd.iterator.Err()
+}
+
+//FetchNext retrieves the next document from the result set. For more details see mgo.Iter.Next()
+//return false if there are no more records to fetch
+//
+//Usage:
+//	aitr := session.DocumentIterator(gmgo.Q{}, data.User{}.CollectionName())
+//	aitr.Load(gmgo.IteratorConfig{PageSize: 1000, SortBy: []string{"-_id"}})
+//	var usr *data.User
+//	for aitr.FetchNext(&usr) {
+//     fmt.Printf("ID: %s", usr.Id)
+//	}
+//
+//  //check if error happend
+//  err := aitr.Error()
+//	if err != nil {
+//		fmt.Printf("handle error: %s", err)
+//	}
+//
+//  //check if timeout happened
+//  if aitr.IsTimeOut() {
+//	   -- handle timeout
+//  }
+func (pd *DocumentIterator) FetchNext(d interface{}) bool {
+	pd.loadInternal()
+
+	hasNext := pd.iterator.Next(d)
+	if hasNext {
+		return true
+	}
+
+	pd.err = pd.iterator.Err()
+	return false
+}
+
+//Error returns iteration error
+func (pd *DocumentIterator) Error() error {
+	if pd.err != nil {
+		return pd.err
+	}
+	return pd.iterator.Err()
+}
+
+//IsTimeout returns true if the iterator timed out
+func (pd *DocumentIterator) IsTimeout() bool {
+	return pd.iterator.Timeout()
 }
 
 //Close closes the document iterator

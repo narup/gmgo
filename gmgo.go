@@ -189,8 +189,8 @@ func (pd *DocumentIterator) Error() error {
 	return pd.iterator.Err()
 }
 
-//IsTimeOut returns true if the iterator timed out
-func (pd *DocumentIterator) IsTimeOut() bool {
+//IsTimeout returns true if the iterator timed out
+func (pd *DocumentIterator) IsTimeout() bool {
 	return pd.iterator.Timeout()
 }
 

@@ -3,6 +3,8 @@ import:
 - package: github.com/rwynn/gtm
   version: 94610373fed2d99a91309d1ff64636f1c60af128
 - package: github.com/serialx/hashring
+  version: 49a4782e9908fe098c907022a1bd7519c79803d6
 - package: github.com/BurntSushi/toml
-  version: v0.3.0
+  version: b26d9c308763d68093482582cea63d69be07a0f0
 - package: github.com/globalsign/mgo
+  version: 1ca0a4f7cbcbe61c005d1bd43fdd8bb8b71df6bc
